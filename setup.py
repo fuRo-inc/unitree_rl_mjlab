@@ -1,6 +1,4 @@
-"""Installation script for the 'unitree_rl_mjlab' python package."""
-
-from setuptools import setup
+from setuptools import setup, find_packages
 
 # Minimum dependencies required prior to installation
 INSTALL_REQUIRES = [
@@ -22,10 +20,9 @@ INSTALL_REQUIRES = [
     "wandb>=0.22.3",
 ]
 
-# Installation operation
 setup(
     name="unitree_rl_mjlab",
-    packages=["mjlab"],
     version="0.0.1",
+    packages=find_packages(),  # ← ここが重要
     install_requires=INSTALL_REQUIRES,
 )

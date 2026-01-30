@@ -1,0 +1,13 @@
+[project]
+name = "unitree-rl-mjlab"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "mjlab>=0.1.0",
+    "mujoco-warp",
+]
+
+[tool.uv.sources]
+mujoco-warp = { git = "https://github.com/google-deepmind/mujoco_warp", rev = "7c20a44bfed722e6415235792a1b247ea6b6a6d3" }
