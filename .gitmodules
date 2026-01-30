@@ -1,0 +1,3 @@
+[submodule "mjlab/tasks/furo_rl_locomotion_mjlab"]
+	path = mjlab/tasks/furo_rl_locomotion_mjlab
+	url = https://github.com/fuRo-inc/furo_rl_locomotion_mjlab.git
