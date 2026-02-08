@@ -18,6 +18,7 @@ from mjlab.rsl_rl.env import VecEnv
 from mjlab.rsl_rl.modules import ActorCritic, ActorCriticRecurrent, resolve_rnd_config, resolve_symmetry_config
 from mjlab.rsl_rl.utils import resolve_obs_groups, store_code_state
 from mjlab.rsl_rl.utils.exporter import export_policy_as_jit, export_policy_as_onnx
+import re
 
 
 class OnPolicyRunner:
@@ -175,16 +176,35 @@ class OnPolicyRunner:
         if self.log_dir is not None and not self.disable_logs:
             self.save(os.path.join(self.log_dir, f"model_{self.current_learning_iteration}.pt"))
 
-    def _boxed_print(self, content: str, width: int):
-        """
-        在内容外围绘制一圈框线，并输出每行内容。
-        """
+    def _boxed_print(self, text: str, width: int):
+
+        ansi_re = re.compile(r"\x1b\[[0-9;]*m")
+
+        def strip_ansi(s: str) -> str:
+            return ansi_re.sub("", s)
+
+        def vlen(s: str) -> int:
+            return len(strip_ansi(s))
+
+        # ✅ これが無いと今回の NameError になります
+        lines = text.splitlines()
         top = "┌" + "─" * width + "┐"
         bottom = "└" + "─" * width + "┘"
         print(top)
-        for line in content.split("\n"):
-            trimmed = line[:width].ljust(width)
-            print(f"│{trimmed}│")
+        for line in lines:
+            vis = vlen(line)
+
+            # 長すぎて箱が崩れるのを防ぐ（最低限の安全策）
+            if vis > width:
+                # ANSI付きのまま綺麗に切るのは面倒なので、まずは崩れ防止を優先
+                line = strip_ansi(line)[:width]
+                vis = len(line)
+
+            pad = width - vis
+            if pad < 0:
+                pad = 0
+
+            print(f"│{line}{' ' * pad}│")
         print(bottom)
 
     def log(self, locs: dict, width: int = 75, pad: int = 45):
@@ -251,7 +271,50 @@ class OnPolicyRunner:
                 )
 
         str = f" \033[1m Learning iteration {locs['it']}/{locs['tot_iter']} \033[0m "
+        def _get_attr_any(env_obj, name, default=None):
+            if hasattr(env_obj, name):
+                return getattr(env_obj, name)
+            for attr in ("_env", "env", "unwrapped"):
+                if hasattr(env_obj, attr):
+                    base = getattr(env_obj, attr)
+                    if base is not None and hasattr(base, name):
+                        return getattr(base, name)
+            return default
 
+        good_steps = _get_attr_any(self.env, "lin_track_good_steps", None)
+        unlock_steps = _get_attr_any(self.env, "_uniform_reset_unlock_steps", 200)
+
+        # good_steps は (num_envs,) Tensor のはずなので max or mean で代表値にする
+        progress = None
+        if good_steps is not None:
+            try:
+                progress = float(good_steps.max().item()) / float(unlock_steps)
+            except Exception:
+                progress = None
+
+        def _get_unlocked_flag(env_obj):
+            # wrapper -> base env をよくある名前で辿る
+            for attr in ("_env", "env", "unwrapped"):
+                if hasattr(env_obj, attr):
+                    try:
+                        base = getattr(env_obj, attr)
+                        if base is not None:
+                            return bool(getattr(base, "_uniform_reset_unlocked", False))
+                    except Exception:
+                        pass
+            return bool(getattr(env_obj, "_uniform_reset_unlocked", False))
+
+        unlocked = _get_unlocked_flag(self.env)
+
+        if unlocked:
+            color_start = "\033[92m"  # Green
+            color_end = "\033[0m"
+        elif (progress is not None) and (progress >= 0.5):
+            color_start = "\033[93m"  # Yellow
+            color_end = "\033[0m"
+        else:
+            color_start = ""
+            color_end = ""
         if len(locs["rewbuffer"]) > 0:
             log_string = (
                 f"""{'#' * width}\n"""
@@ -269,7 +332,13 @@ class OnPolicyRunner:
                     f"""{'Mean extrinsic reward:':>{pad}} {statistics.mean(locs['erewbuffer']):.2f}\n"""
                     f"""{'Mean intrinsic reward:':>{pad}} {statistics.mean(locs['irewbuffer']):.2f}\n"""
                 )
-            log_string += f"""{'Mean reward:':>{pad}} {statistics.mean(locs['rewbuffer']):.2f}\n"""
+            # log_string += f"""{'Mean reward:':>{pad}} {color_start}{statistics.mean(locs['rewbuffer']):.2f}{color_end}\n"""
+            mean_rew_plain = f"{statistics.mean(locs['rewbuffer']):.2f}"   # まず素の文字列
+            mean_rew_field = mean_rew_plain.rjust(6)                      # ←表示幅を固定（必要なら 8 とか）
+
+            mean_rew_colored = f"{color_start}{mean_rew_field}{color_end}"  # 色は後から巻く
+
+            log_string += f"""{'Mean reward:':>{pad}} {mean_rew_colored}\n"""
             # -- episode info
             log_string += f"""{'Mean episode length:':>{pad}} {statistics.mean(locs['lenbuffer']):.2f}\n"""
         else:

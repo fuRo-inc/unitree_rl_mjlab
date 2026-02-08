@@ -61,7 +61,7 @@ class MujocoCfg:
   tolerance: float = 1e-8
   ls_iterations: int = 50
   ls_tolerance: float = 0.01
-  ccd_iterations: int = 50
+  ccd_iterations: int = 100
 
   # Other.
   gravity: tuple[float, float, float] = (0, 0, -9.81)
