@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.distributions import Normal
 
 from mjlab.rsl_rl.networks import MLP, EmpiricalNormalization
-
+import torch.nn.functional as F
 
 class ActorCritic(nn.Module):
     is_recurrent = False
@@ -138,6 +138,30 @@ class ActorCritic(nn.Module):
                 raise ValueError(f"Unknown standard deviation type: {self.noise_std_type}. Should be 'scalar' or 'log'")
         # create distribution
         self.distribution = Normal(mean, std)
+
+
+    # def update_distribution(self, obs):
+    #     if self.state_dependent_std:
+    #         mean_and_std = self.actor(obs)
+    #         if self.noise_std_type == "scalar":
+    #             mean, raw_std = torch.unbind(mean_and_std, dim=-2)
+    #             std = F.softplus(raw_std) + 1e-6
+    #         elif self.noise_std_type == "log":
+    #             mean, log_std = torch.unbind(mean_and_std, dim=-2)
+    #             log_std = torch.clamp(log_std, min=-20.0, max=2.0)
+    #             std = torch.exp(log_std)
+    #         else:
+    #             raise ValueError(...)
+    #     else:
+    #         mean = self.actor(obs)
+    #         if self.noise_std_type == "scalar":
+    #             std = torch.clamp(self.std, min=1e-6).expand_as(mean)
+    #         elif self.noise_std_type == "log":
+    #             log_std = torch.clamp(self.log_std, min=-20.0, max=2.0)
+    #             std = torch.exp(log_std).expand_as(mean)
+    #         else:
+    #             raise ValueError(...)
+    #     self.distribution = Normal(mean, std)
 
     def act(self, obs, **kwargs):
         obs = self.get_actor_obs(obs)
