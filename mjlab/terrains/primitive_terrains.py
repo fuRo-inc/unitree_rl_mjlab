@@ -637,3 +637,92 @@ class BoxRandomGridTerrainCfg(SubTerrainCfg):
         boxes.append(box)
 
     return boxes, box_colors
+
+
+@dataclass(kw_only=True)
+class BoxSurroundedBarTerrainCfg(SubTerrainCfg):
+  """Flat terrain with 4 step-over bars surrounding a central virtual platform area."""
+
+  bar_height_range: tuple[float, float]
+  bar_width_range: tuple[float, float]
+  platform_width: float = 1.0   # 中央の空き領域の一辺
+  bar_offset: float = 0.0       # 仮想platform外周からバーまでの距離
+  bar_length_margin: float = 0.0
+
+  def function(
+    self, difficulty: float, spec: mujoco.MjSpec, rng: np.random.Generator
+  ) -> TerrainOutput:
+    del rng
+
+    body = spec.body("terrain")
+    boxes = []
+    box_colors = []
+
+    plane_geoms = make_plane(body, self.size, 0.0, center_zero=False)
+    boxes.extend(plane_geoms)
+    box_colors.extend([(0.5, 0.5, 0.5, 1.0) for _ in plane_geoms])
+
+    bar_height = self.bar_height_range[0] + difficulty * (
+      self.bar_height_range[1] - self.bar_height_range[0]
+    )
+    bar_width = self.bar_width_range[0] + difficulty * (
+      self.bar_width_range[1] - self.bar_width_range[0]
+    )
+
+    center_x = self.size[0] / 2
+    center_y = self.size[1] / 2
+    half_platform = self.platform_width / 2
+    half_bar_h = bar_height / 2
+
+    # 仮想platformの境界
+    platform_min_x = center_x - half_platform
+    platform_max_x = center_x + half_platform
+    platform_min_y = center_y - half_platform
+    platform_max_y = center_y + half_platform
+
+    # バー中心
+    top_y = platform_max_y +  + bar_width / 2
+    bottom_y = platform_min_y -  - bar_width / 2
+    right_x = platform_max_x +  + bar_width / 2
+    left_x = platform_min_x -  - bar_width / 2
+
+    # バー長
+    bar_span = self.platform_width + 2 *  + 2 * bar_width + 2 * self.bar_length_margin
+
+    bar_rgba = (0.85, 0.55, 0.15, 1.0)
+
+    boxes.append(body.add_geom(
+      type=mujoco.mjtGeom.mjGEOM_BOX,
+      size=(bar_span / 2, bar_width / 2, half_bar_h),
+      pos=(center_x, top_y, half_bar_h),
+    ))
+    box_colors.append(bar_rgba)
+
+    boxes.append(body.add_geom(
+      type=mujoco.mjtGeom.mjGEOM_BOX,
+      size=(bar_span / 2, bar_width / 2, half_bar_h),
+      pos=(center_x, bottom_y, half_bar_h),
+    ))
+    box_colors.append(bar_rgba)
+
+    boxes.append(body.add_geom(
+      type=mujoco.mjtGeom.mjGEOM_BOX,
+      size=(bar_width / 2, bar_span / 2, half_bar_h),
+      pos=(right_x, center_y, half_bar_h),
+    ))
+    box_colors.append(bar_rgba)
+
+    boxes.append(body.add_geom(
+      type=mujoco.mjtGeom.mjGEOM_BOX,
+      size=(bar_width / 2, bar_span / 2, half_bar_h),
+      pos=(left_x, center_y, half_bar_h),
+    ))
+    box_colors.append(bar_rgba)
+
+    origin = np.array([center_x, center_y, 0.0])
+
+    geometries = [
+      TerrainGeometry(geom=box, color=color)
+      for box, color in zip(boxes, box_colors, strict=True)
+    ]
+    return TerrainOutput(origin=origin, geometries=geometries)

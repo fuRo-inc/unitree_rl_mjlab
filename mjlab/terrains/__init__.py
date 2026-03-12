@@ -15,6 +15,10 @@ from mjlab.terrains.primitive_terrains import (
 from mjlab.terrains.primitive_terrains import (
   BoxRandomGridTerrainCfg as BoxRandomGridTerrainCfg,
 )
+from mjlab.terrains.primitive_terrains import (
+  BoxSurroundedBarTerrainCfg as BoxSurroundedBarTerrainCfg,
+)
+
 from mjlab.terrains.terrain_generator import SubTerrainCfg as SubTerrainCfg
 from mjlab.terrains.terrain_generator import TerrainGenerator as TerrainGenerator
 from mjlab.terrains.terrain_generator import TerrainGeneratorCfg as TerrainGeneratorCfg
