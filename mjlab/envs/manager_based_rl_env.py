@@ -131,7 +131,9 @@ class ManagerBasedRlEnvCfg:
   episodic rewards across different simulation frequencies. Set to False for
   algorithms that expect unscaled reward signals (e.g., HER, static reward scaling).
   """
-
+  obs_cfg: dict[str, Any] = field(default_factory=dict)
+  noise_cfg: dict[str, Any] = field(default_factory=dict)
+  odo_log_cfg: dict[str, Any] = field(default_factory=dict)
 
 class ManagerBasedRlEnv:
   """Manager-based RL environment."""
