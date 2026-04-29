@@ -97,6 +97,8 @@ class OnPolicyRunner:
         start_iter = self.current_learning_iteration
         tot_iter = start_iter + num_learning_iterations
         for it in range(start_iter, tot_iter):
+            self.current_learning_iteration = it
+            self._set_env_rl_iteration(it)
             start = time.time()
             # Rollout
             with torch.inference_mode():
@@ -152,7 +154,6 @@ class OnPolicyRunner:
 
             stop = time.time()
             learn_time = stop - start
-            self.current_learning_iteration = it
             # log info
             if self.log_dir is not None and not self.disable_logs:
                 # Log information
@@ -439,6 +440,33 @@ class OnPolicyRunner:
     """
     Helper functions.
     """
+
+    def _set_env_rl_iteration(self, it: int) -> None:
+        """Expose learning iteration to wrapped envs."""
+        env = self.env
+        seen = set()
+
+        while env is not None and id(env) not in seen:
+            seen.add(id(env))
+
+            try:
+                setattr(env, "_rl_iteration", int(it))
+            except Exception:
+                pass
+
+            next_env = None
+            for attr in ("_env", "env", "unwrapped", "venv"):
+                if hasattr(env, attr):
+                    try:
+                        candidate = getattr(env, attr)
+                    except Exception:
+                        candidate = None
+
+                    if candidate is not None and candidate is not env:
+                        next_env = candidate
+                        break
+
+            env = next_env
 
     def _configure_multi_gpu(self):
         """Configure multi-gpu training."""
